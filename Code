@@ -1,0 +1,67 @@
+import discord
+from discord import app_commands
+
+# --- BOT SETUP ---
+# Define the necessary intents for the bot to function
+intents = discord.Intents.default()
+intents.messages = True  # Needed for on_message event
+intents.message_content = True  # Needed to read message content and see mentions
+
+# Create a bot instance (client)
+client = discord.Client(intents=intents)
+# Create a command tree for slash commands
+tree = app_commands.CommandTree(client)
+
+# In-memory storage for AFK users. Format: {user_id: "reason"}
+afk_users = {}
+
+
+# --- EVENTS ---
+@client.event
+async def on_ready():
+    """Event that runs when the bot is ready and online."""
+    await tree.sync()  # Sync slash commands with Discord
+    print(f"Logged in as {client.user}")
+    print("Bot is ready.")
+
+
+@client.event
+async def on_message(message: discord.Message):
+    """Event that runs on every message."""
+    # 1. Ignore messages sent by the bot itself
+    if message.author == client.user:
+        return
+
+    # 2. If the message author is AFK, remove their AFK status
+    if message.author.id in afk_users:
+        del afk_users[message.author.id]
+        # Send a temporary message welcoming them back
+        await message.channel.send(f"Welcome back, {message.author.mention}! Your AFK status is removed.", delete_after=10)
+
+    # 3. Check if any mentioned users are AFK
+    if message.mentions:
+        for mentioned_user in message.mentions:
+            if mentioned_user.id in afk_users:
+                reason = afk_users[mentioned_user.id]
+                await message.reply(f"{mentioned_user.display_name} is currently AFK. Reason: {reason}")
+                # Stop after finding the first AFK user to avoid spam
+                break
+
+
+# --- SLASH COMMANDS ---
+@tree.command(name="afk", description="Set your status to AFK.")
+@app_commands.describe(reason="Why you are AFK.")
+async def afk(interaction: discord.Interaction, reason: str = "No reason provided"):
+    """Command to set a user's AFK status."""
+    user_id = interaction.user.id
+    
+    # Add the user to the afk_users dictionary
+    afk_users[user_id] = reason
+    
+    # Respond to the user ephemerally (only they can see it)
+    await interaction.response.send_message(f"You are now AFK. Reason: {reason}", ephemeral=True)
+
+
+# --- RUN THE BOT ---
+# Replace 'YOUR_BOT_TOKEN' with your actual bot token
+client.run('YOUR_BOT_TOKEN')
