@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 
-# --- BOT SETUP ---
+# --- BOT SETUP --- 
 # Define the necessary intents for the bot to function
 intents = discord.Intents.default()
 intents.messages = True  # Needed for on_message event
